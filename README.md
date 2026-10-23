@@ -10,6 +10,12 @@ React, FastAPI, PostgreSQL, Neo4j, Traefik を組み合わせたフルスタッ�
 - **GraphDB**: Neo4j
 - **Proxy**: Traefik (ローカル開発および本番でのドメイン・SSL制御)
 
+## ドキュメント
+
+- [システムアーキテクチャ概要](docs/architecture.md): 全体構成図（Mermaid）とコンポーネント構成
+- [開発ロードマップ](docs/roadmap.md): フェーズ別開発計画・タスク管理
+- [Architecture Decision Records (ADR)](docs/adr/README.md): 技術選定・設計判断の記録
+
 ## クイックスタート
 
 1. **環境変数の準備**
@@ -19,7 +25,6 @@ React, FastAPI, PostgreSQL, Neo4j, Traefik を組み合わせたフルスタッ�
 cp .env.sample .env
 cp db/.env.sample db/.env
 cp proxy/.env.sample proxy/.env
-
 ```
 
 2. **コンテナの起動**
@@ -36,7 +41,6 @@ docker compose up -d
 
 # プロキシの起動
 docker compose -f proxy/compose.yaml up -d
-
 ```
 
 ## 便利なショートカットコマンド
@@ -54,7 +58,6 @@ make shell
 make shell SERVICE=postgres
 make shell SERVICE=neo4j
 make shell SERVICE=frontend
-
 ```
 
 ### シェルスクリプトを使用する場合
@@ -66,7 +69,6 @@ make shell SERVICE=frontend
 ./shell.sh postgres  # postgres コンテナ
 ./shell.sh neo4j     # neo4j コンテナ
 ./shell.sh frontend  # frontend コンテナ
-
 ```
 
 - **Windows Command Prompt / PowerShell (`shell.bat`)**:
@@ -76,5 +78,4 @@ make shell SERVICE=frontend
 .\shell.bat postgres :: postgres コンテナ
 .\shell.bat neo4j    :: neo4j コンテナ
 .\shell.bat frontend :: frontend コンテナ
-
 ```

@@ -10,6 +10,12 @@ React、FastAPI、PostgreSQL、Neo4j、Traefik を組み合わせたフルスタ
 - **GraphDB**: Neo4j
 - **Proxy**: Traefik (ローカル開発および本番でのドメイン・SSL制御)
 
+## ドキュメント
+
+- [システムアーキテクチャ概要](docs/architecture.md): 全体構成図（Mermaid）とコンポーネント構成
+- [開発ロードマップ](docs/roadmap.md): フェーズ別開発計画・タスク管理
+- [Architecture Decision Records (ADR)](docs/adr/README.md): 技術選定・設計判断の記録
+
 ## クイックスタート
 
 1. **環境変数の準備**
