@@ -3,20 +3,19 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: production
     networks:
-      - gateway
+      - edge-net
+      - internal-db-net
     env_file:
-      - .env
-    volumes:
-      - ./backend:/backend_app
-      - /backend_app/.venv
-    command: ["uv", "run", "fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "8000"]
+      - path: .env
+        required: false
+    command: ["uv", "run", "fastapi", "run", "main.py", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
     labels:
       - "traefik.enable=true"
-      # 環境変数 $DOMAIN を使用してルーティング
-      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend.entrypoints=web" # 本番環境時は websecure に変更して自動TLSを使用
-      # /api プレフィックスを削除する設定
+      - "traefik.docker.network=edge-net"
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN:-app.localhost}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=web"
       - "traefik.http.routers.backend.middlewares=backend-stripprefix"
       - "traefik.http.middlewares.backend-stripprefix.stripprefix.prefixes=/api"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
@@ -25,20 +24,20 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: production
     networks:
-      - gateway
-    env_file:
-      - .env
-    volumes:
-      - ./frontend:/frontend_app
-      - /frontend_app/node_modules
+      - edge-net
     labels:
       - "traefik.enable=true"
-      # 環境変数 $DOMAIN を使用してルーティング
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.frontend.entrypoints=web" # 本番環境時は websecure に変更して自動TLSを使用
-      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+      - "traefik.docker.network=edge-net"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-app.localhost}`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=8080"
 
 networks:
-  gateway:
+  edge-net:
+    name: edge-net
+    external: true
+  internal-db-net:
+    name: internal-db-net
     external: true

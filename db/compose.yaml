@@ -5,17 +5,27 @@ services:
       dockerfile: Dockerfile
     container_name: postgres
     restart: always
-    ports:
-      - "5432:5432" # ホストからの開発用アクセスを許可
+    env_file:
+      - path: .env
+        required: false
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB:-app_db}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      TZ: ${TZ}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-app_user}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: ${TZ:-Asia/Tokyo}
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init-scripts:/docker-entrypoint-initdb.d:ro
     networks:
-      - gateway
+      - internal-db-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-admin} -d $${POSTGRES_DB:-app_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   neo4j:
     build:
@@ -23,46 +33,38 @@ services:
       dockerfile: Dockerfile
     container_name: neo4j
     restart: always
-    ports:
-      - "7474:7474" # Neo4j Browser (HTTP)
-      - "7687:7687" # Bolt Protocol (FastAPI接続用)
+    env_file:
+      - path: .env
+        required: false
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH}
-      NEO4J_PLUGINS: '["apoc"]' # Neo4j拡張APOCプラグインを自動導入
-      TZ: ${TZ}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_allowlist: "apoc.coll.*,apoc.map.*,apoc.date.*"
+      NEO4J_apoc_export_file_enabled: "false"
+      NEO4J_apoc_import_file_enabled: "false"
+      TZ: ${TZ:-Asia/Tokyo}
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
       - neo4j_import:/import
       - neo4j_plugins:/plugins
     networks:
-      - gateway
-    labels:
-      - "traefik.enable=true"
-      # /browser 自体の通常ルーティング
-      - "traefik.http.routers.neo4j.rule=Host(`${DOMAIN}`) && PathPrefix(`/browser`)"
-      - "traefik.http.routers.neo4j.entrypoints=web"
-      - "traefik.http.services.neo4j.loadbalancer.server.port=7474"
-      
-      # /neo4j へのアクセスを /browser/ にリダイレクトする設定
-      - "traefik.http.routers.neo4j-redirect.rule=Host(`${DOMAIN}`) && (Path(`/neo4j`) || PathPrefix(`/neo4j/`))"
-      - "traefik.http.routers.neo4j-redirect.entrypoints=web"
-      - "traefik.http.routers.neo4j-redirect.middlewares=neo4j-redirect-url"
-      - "traefik.http.middlewares.neo4j-redirect-url.redirectregex.regex=^http://([^/]+)/neo4j(.*)$$"
-      - "traefik.http.middlewares.neo4j-redirect-url.redirectregex.replacement=http://$$1/browser/"
+      - internal-db-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
     name: postgres_data
   neo4j_data:
-    name: neo4j_data
   neo4j_logs:
-    name: neo4j_logs
   neo4j_import:
-    name: neo4j_import
   neo4j_plugins:
-    name: neo4j_plugins
 
 networks:
-  gateway:
+  internal-db-net:
+    name: internal-db-net
     external: true

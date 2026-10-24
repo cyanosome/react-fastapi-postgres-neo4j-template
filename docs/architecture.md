@@ -26,33 +26,45 @@
 
 ```mermaid
 flowchart TD
-    Client["クライアント (ブラウザ / APIクライアント)"]
+    Client["外部クライアント (Browser / API Client)"]
 
     subgraph Host["ホストマシン / Docker環境"]
         Traefik["Traefik リバースプロキシ<br/>(:80 / :443)"]
+        SocketProxy["Docker Socket Proxy<br/>(:2375 Read-Only)"]
 
-        subgraph DockerNetwork["Docker Network: gateway"]
-            Frontend["Frontend (React + Vite)<br/>内部ポート :5173"]
-            Backend["Backend (FastAPI)<br/>内部ポート :8000"]
-            PostgreSQL[("PostgreSQL (RDB)<br/>内部ポート :5432")]
-            Neo4j[("Neo4j (GraphDB)<br/>HTTP :7474 / Bolt :7687")]
+        subgraph NetEdge["Docker Network: edge-net (DMZ)"]
+            Frontend["Frontend (Nginx 静的配信)<br/>内部ポート :8080 (Non-root UID 101)"]
+            BackendEdge["Backend (FastAPI)<br/>内部ポート :8000 (Non-root UID 1000)"]
+        end
+
+        subgraph NetInternal["Docker Network: internal-db-net (--internal: 完全外部遮断)"]
+            BackendInternal["Backend (FastAPI)"]
+            PostgreSQL[("PostgreSQL 17<br/>内部ポート :5432 (App非特権ロール)")]
+            Neo4j[("Neo4j 5.26<br/>Bolt :7687 (Restricted APOC)")]
+        end
+
+        subgraph NetSocket["Docker Network: socket-proxy-net (内部限定)"]
+            TraefikSocket["Traefik"]
+            SocketProxyInternal["Docker Socket Proxy"]
         end
     end
 
-    %% ルーティング
+    %% 通信フロー
     Client -->|"http://${DOMAIN}/*"| Traefik
     Traefik -->|"パス: /"| Frontend
-    Traefik -->|"パス: /api/* (StripPrefix)"| Backend
-    Traefik -->|"パス: /browser/*, /neo4j"| Neo4j
-    Traefik -.->|"パス: /dashboard/* (BasicAuth)"| Traefik
+    Traefik -->|"パス: /api/* (StripPrefix)"| BackendEdge
+    Traefik -.->|"Host: traefik.${DOMAIN} (BasicAuth)"| Traefik
 
-    %% バックエンドからのデータ接続
-    Backend -->|"SQL (5432)"| PostgreSQL
-    Backend -->|"Bolt (7687)"| Neo4j
+    %% データアクセス
+    BackendInternal -->|"SQL (5432)"| PostgreSQL
+    BackendInternal -->|"Bolt (7687)"| Neo4j
 
-    %% 開発時ホスト直接アクセス
-    Client -.->|"開発用直接接続 (:5432)"| PostgreSQL
-    Client -.->|"開発用直接接続 (:7474 / :7687)"| Neo4j
+    %% 遮断の明示
+    Frontend x-.-x|"完全遮断 (ネットワーク非所属)"| PostgreSQL
+    Frontend x-.-x|"完全遮断 (ネットワーク非所属)"| Neo4j
+    Traefik x-.-x|"直接アクセス不可"| PostgreSQL
+    Client x-.-x|"外部ポート非公開"| PostgreSQL
+    Client x-.-x|"外部ポート非公開"| Neo4j
 ```
 
 ---
@@ -63,11 +75,12 @@ flowchart TD
 
 | サービス | 技術スタック | 役割 | ルーティング / ポート |
 | :--- | :--- | :--- | :--- |
-| **Proxy** | Traefik v3.6 | リバースプロキシ、ルーティング、SSL終端 | `http://${DOMAIN}/` (80, 443) |
-| **Frontend** | React, TypeScript, Vite | ユーザーインターフェース | `http://${DOMAIN}/` (内部: 5173) |
-| **Backend** | FastAPI, Python 3.12, uv | Web API、ビジネスロジック | `http://${DOMAIN}/api` (内部: 8000) |
-| **RDB** | PostgreSQL 16+ | トランザクションデータ・リレーショナルデータ管理 | 内部: 5432, 外部公開: 5432 |
-| **GraphDB** | Neo4j Community (APOC付) | 知識グラフ、ネットワーク構造データ管理 | Bolt: 7687, ブラウザ: `/browser` |
+| **Proxy** | Traefik v3.6 + Socket Proxy | リバースプロキシ、ルーティング、SSL終端、ソケット保護 | `http://${DOMAIN}/` (80, 443) |
+| **Frontend** | React, Vite, Nginx unprivileged | ユーザーインターフェース (SPA配信) | `http://${DOMAIN}/` (内部: 8080) |
+| **Backend** | FastAPI, Python 3.12, uv | Web API、ビジネスロジック (Non-root) | `http://${DOMAIN}/api` (内部: 8000) |
+| **RDB** | PostgreSQL 17 (Alpine) | トランザクションデータ・リレーショナルデータ管理 | 内部: 5432 (非特権アプリ専用ロール) |
+| **GraphDB** | Neo4j Community (APOC制限) | 知識グラフ、ネットワーク構造データ管理 | Bolt: 7687 (内部隔離) |
+
 
 ### 3.2 ディレクトリと Compose ファイルの責務
 

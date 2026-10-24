@@ -1,0 +1,14 @@
+# ローカル開発用オーバーライド設定例
+# 使用方法: cp db/compose.override.yaml.sample db/compose.override.yaml
+# 起動コマンド: docker compose -f db/compose.yaml -f db/compose.override.yaml up -d
+# ホストマシンからローカルループバック (127.0.0.1) 経由で DB クライアント接続を許可します。
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  neo4j:
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"

@@ -1,0 +1,42 @@
+# Environment configurations and secrets
+.env
+.env.*
+!.env.sample
+!**/.env.sample
+
+# Docker Compose overrides
+*.override.yml
+*.override.yaml
+
+# Git metadata
+.git/
+.gitignore
+
+# TLS / Certificates / Secrets
+**/letsencrypt/acme.json
+*.pem
+*.key
+*.crt
+
+# Database volumes and dumps
+postgres_data/
+neo4j_data/
+*.sql
+*.dump
+
+# Logs
+logs/
+*.log
+
+# Dependencies and caches
+node_modules/
+dist/
+dist-ssr/
+.venv/
+__pycache__/
+*.py[cod]
+.uv/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

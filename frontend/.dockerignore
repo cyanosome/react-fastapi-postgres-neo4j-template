@@ -21,3 +21,8 @@ Dockerfile
 .vscode/
 .idea/
 .DS_Store
+
+# Environment configurations and secrets
+.env
+.env.*
+

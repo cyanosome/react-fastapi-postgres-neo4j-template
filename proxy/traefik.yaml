@@ -13,18 +13,15 @@ entryPoints:
     address: :443
 
 api:
-  # --- ローカル開発環境用 ---
-  insecure: true # ポート8080で認証なしのダッシュボードを有効化
+  insecure: false
   dashboard: true
-
-  # --- 本番環境用 ---
-  # 安全のため insecure を false にし、docker-compose 側の basicauth ラベルで保護します。
-  # insecure: false
-  # dashboard: true
 
 providers:
   docker:
+    endpoint: "tcp://docker-socket-proxy:2375"
     exposedByDefault: false
+    network: edge-net
+
 
 # --- 本番環境用：Let's Encrypt証明書自動更新 ---
 # 本番環境でSSL化を行う際は、docker-compose側の各ルーティングで tls.certresolver: le-http-01 を指定します。

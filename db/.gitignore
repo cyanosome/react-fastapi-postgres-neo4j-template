@@ -1,0 +1,14 @@
+# Environment configurations
+.env
+.env.*
+!.env.sample
+
+# Local Docker Compose overrides
+*.override.yml
+*.override.yaml
+
+# Database volume dumps
+postgres_data/
+neo4j_data/
+*.sql
+*.dump

@@ -1,5 +1,8 @@
 # Environment configurations
 .env
+.env.*
+!.env.sample
+
 
 # SSL Certificates (Acme config)
 letsencrypt/

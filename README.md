@@ -27,21 +27,43 @@ cp db/.env.sample db/.env
 cp proxy/.env.sample proxy/.env
 ```
 
-2. **コンテナの起動**
+2. **ネットワークの作成（初回のみ）**
+
+多層防御（DMZと内部ネットワークの分離）のため、2つの独立したネットワークを作成します.
 
 ```bash
-# プロキシネットワークの作成（初回のみ）
-docker network create gateway
+# エッジ用ネットワーク (Traefik, Frontend, Backend)
+docker network create edge-net
 
-# データベースの起動
+# データベース専用の完全内部遮断ネットワーク (Backend, PostgreSQL, Neo4j)
+docker network create --internal internal-db-net
+```
+
+3. **コンテナの起動**
+
+```bash
+# プロキシの起動 (Traefik + Docker Socket Proxy)
+docker compose -f proxy/compose.yaml up -d
+
+# データベースの起動 (PostgreSQL + Neo4j)
 docker compose -f db/compose.yaml up -d
 
-# アプリケーションの起動
+# アプリケーションの起動 (FastAPI + React/Nginx)
 docker compose up -d
-
-# プロキシの起動
-docker compose -f proxy/compose.yaml up -d
 ```
+
+起動後、以下のURLにアクセスできます:
+- **フロントエンド**: `http://app.localhost/`
+- **バックエンド API**: `http://app.localhost/api/` (ヘルスチェック: `/api/health`)
+- **Traefik 管理ダッシュボード**: `http://traefik.app.localhost/` (Basic認証保護)
+
+### 開発時ホットリロードの有効化
+本番セキュア設定がデフォルトとなっています。ローカル開発でホットリロードや直接DBポート接続を行いたい場合は、overrideファイルを利用してください:
+```bash
+cp compose.override.yaml.sample compose.override.yaml
+cp db/compose.override.yaml.sample db/compose.override.yaml
+```
+
 
 ## 便利なショートカットコマンド
 

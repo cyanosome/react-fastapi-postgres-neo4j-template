@@ -1,32 +1,60 @@
 services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: docker-socket-proxy
+    restart: always
+    environment:
+      - CONTAINERS=1
+      - NETWORKS=1
+      - SERVICES=1
+      - EVENTS=1
+      - VERSION=1
+      - POST=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy-net
+
   traefik:
     image: traefik:v3.6
     container_name: traefik
     restart: always
+    depends_on:
+      - docker-socket-proxy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080" # ローカル開発時のダッシュボード確認用
     networks:
-      - gateway
+      - edge-net
+      - socket-proxy-net
     environment:
-      TZ: ${TZ}
-    env_file:
-      - .env
+      TZ: ${TZ:-Asia/Tokyo}
     labels:
-      traefik.enable: true
-      # ドメイン設定を環境変数化
-      traefik.http.routers.dashboard.rule: Host(`${DOMAIN}`) && PathPrefix(`/dashboard`)
-      traefik.http.routers.dashboard.middlewares: auth
-      traefik.http.routers.dashboard.entrypoints: web # 本番時は websecure に変更して自動TLSを使用
-      traefik.http.routers.dashboard.service: api@internal
-      traefik.http.middlewares.auth.basicauth.users: ${DASHBOARD_AUTH}
+      - "traefik.enable=true"
+      - "traefik.docker.network=edge-net"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN:-app.localhost}`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${DASHBOARD_AUTH}"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
       - ./letsencrypt:/letsencrypt
       - ./logs:/logs
 
 networks:
-  gateway:
+  edge-net:
+    name: edge-net
     external: true
+  socket-proxy-net:
+    name: socket-proxy-net
+    internal: true
